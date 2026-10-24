@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -22,7 +23,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.proyectocarabinero.viewmodel.MainViewModel
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.example.proyectocarabinero.R
 
 // ---------- Validaciones ----------
 fun validateName(s: String): String? = when {
@@ -87,13 +90,11 @@ private fun AuthHeader(title: String, subtitle: String) {
     LaunchedEffect(Unit) { visible = true }
     AnimatedVisibility(visible, enter = fadeIn() + slideInVertically { -it / 2 }) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Surface(shape = MaterialTheme.shapes.extraLarge, color = MaterialTheme.colorScheme.primaryContainer) {
-                Icon(
-                    Icons.Default.Security, null,
-                    modifier = Modifier.padding(20.dp).size(48.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
+            Image(
+                painter = painterResource(R.drawable.escudo),
+                contentDescription = "Escudo",
+                modifier = Modifier.height(120.dp)
+            )
             Spacer(Modifier.height(16.dp))
             Text(title, style = MaterialTheme.typography.headlineMedium)
             Text(
@@ -101,6 +102,22 @@ private fun AuthHeader(title: String, subtitle: String) {
                 textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+    }
+}
+
+// ---------- Pantalla de bienvenida ----------
+@Composable
+fun WelcomeScreen(onLogin: () -> Unit, onRegister: () -> Unit) {
+    Column(
+        Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        AuthHeader("Bienvenido", "Proyecto carabinero: estudio, repaso y autoevaluación, incluso sin conexión")
+        Spacer(Modifier.height(32.dp))
+        Button(onClick = onLogin, modifier = Modifier.fillMaxWidth()) { Text("Iniciar sesión") }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = onRegister, modifier = Modifier.fillMaxWidth()) { Text("Crear cuenta") }
     }
 }
 

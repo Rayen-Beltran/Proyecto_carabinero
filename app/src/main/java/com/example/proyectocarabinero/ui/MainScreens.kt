@@ -30,6 +30,9 @@ import com.example.proyectocarabinero.viewmodel.MainViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 
 // ---------- Inicio ----------
 @Composable
@@ -186,7 +189,7 @@ private fun formatSize(b: Long): String = when {
 
 // ---------- Perfil / cierre de sesión ----------
 @Composable
-fun ProfileScreen(vm: MainViewModel, onLogout: () -> Unit) {
+fun ProfileScreen(vm: MainViewModel, onEdit: () -> Unit, onLogout: () -> Unit) {
     Column(
         Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -196,10 +199,58 @@ fun ProfileScreen(vm: MainViewModel, onLogout: () -> Unit) {
         Text(vm.user?.name ?: "", style = MaterialTheme.typography.headlineSmall)
         Text(vm.user?.email ?: "", color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(16.dp))
+        OutlinedButton(onClick = onEdit) {
+            Icon(Icons.Default.Edit, null)
+            Spacer(Modifier.width(8.dp))
+            Text("Editar datos")
+        }
         Button(onClick = onLogout) {
             Icon(Icons.Default.Logout, null)
             Spacer(Modifier.width(8.dp))
             Text("Cerrar sesión")
         }
+    }
+}
+
+@Composable
+fun EditProfileScreen(vm: MainViewModel, onDone: () -> Unit) {
+    var name by rememberSaveable { mutableStateOf(vm.user?.name ?: "") }
+    var email by rememberSaveable { mutableStateOf(vm.user?.email ?: "") }
+    var newPass by rememberSaveable { mutableStateOf("") }
+    var current by rememberSaveable { mutableStateOf("") }
+    var submitted by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    val nameErr = validateName(name)
+    val emailErr = validateEmail(email)
+    val newPassErr = if (newPass.isEmpty()) null else validatePassword(newPass)
+    val currentErr = if (current.isEmpty()) "Ingresa tu contraseña actual para confirmar" else null
+
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text("Editar mis datos", style = MaterialTheme.typography.headlineSmall)
+        Spacer(Modifier.height(8.dp))
+        AppTextField(name, { name = it }, "Nombre", Icons.Default.Person, if (submitted) nameErr else null)
+        AppTextField(email, { email = it; error = null }, "Correo", Icons.Default.Email,
+            if (submitted) emailErr else null, keyboardType = KeyboardType.Email)
+        AppTextField(newPass, { newPass = it }, "Nueva contraseña (opcional)", Icons.Default.Lock,
+            if (submitted) newPassErr else null, password = true, keyboardType = KeyboardType.Password)
+        AppTextField(current, { current = it; error = null }, "Contraseña actual", Icons.Default.Lock,
+            if (submitted) currentErr else null, password = true,
+            keyboardType = KeyboardType.Password, imeAction = ImeAction.Done)
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        Button(
+            onClick = {
+                submitted = true
+                if (listOf(nameErr, emailErr, newPassErr, currentErr).all { it == null }) {
+                    error = vm.updateProfile(name, email, current, newPass)
+                    if (error == null) onDone()
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text("Guardar cambios") }
+        TextButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) { Text("Cancelar") }
     }
 }

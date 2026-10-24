@@ -55,7 +55,14 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         loadDocs()
         return true
     }
-
+    fun updateProfile(name: String, email: String, currentPass: String, newPass: String): String? {
+        val u = user ?: return "Sesión no válida"
+        if (!db.checkPassword(u.id, currentPass)) return "La contraseña actual es incorrecta"
+        if (!db.updateUser(u.id, name.trim(), email.trim(), newPass)) return "Ese correo ya está registrado"
+        user = db.getUser(u.id)
+        message = "Datos actualizados"
+        return null
+    }
     fun logout() {
         prefs.edit().remove("user_id").apply()
         user = null

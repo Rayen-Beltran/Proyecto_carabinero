@@ -84,4 +84,21 @@ class AppDb(context: Context) : SQLiteOpenHelper(context, "carabinero.db", null,
     fun deleteDoc(id: Long) {
         writableDatabase.delete("documents", "id=?", arrayOf(id.toString()))
     }
+    fun checkPassword(id: Long, pass: String): Boolean =
+        readableDatabase.rawQuery("SELECT salt,hash FROM users WHERE id=?", arrayOf(id.toString()))
+            .use { c -> c.moveToFirst() && hash(pass, c.getString(0)) == c.getString(1) }
+
+    /** false si el correo ya lo usa otro usuario */
+    fun updateUser(id: Long, name: String, email: String, newPass: String): Boolean {
+        val cv = ContentValues().apply { put("name", name); put("email", email.lowercase()) }
+        if (newPass.isNotEmpty()) {
+            val salt = UUID.randomUUID().toString()
+            cv.put("salt", salt); cv.put("hash", hash(newPass, salt))
+        }
+        return try {
+            writableDatabase.update("users", cv, "id=?", arrayOf(id.toString())) > 0
+        } catch (e: android.database.sqlite.SQLiteConstraintException) {
+            false
+        }
+    }
 }

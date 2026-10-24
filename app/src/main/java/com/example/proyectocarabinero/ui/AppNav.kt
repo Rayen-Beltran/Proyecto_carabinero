@@ -25,11 +25,13 @@ import com.example.proyectocarabinero.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
 
 object Routes {
+    const val WELCOME = "welcome"
     const val LOGIN = "login"
     const val REGISTER = "register"
     const val HOME = "home"
     const val DOCS = "documents"
     const val PROFILE = "profile"
+    const val EDIT = "edit_profile"
 }
 
 private data class NavItem(val route: String, val label: String, val icon: ImageVector)
@@ -45,7 +47,7 @@ private val items = listOf(
 fun AppNav(vm: MainViewModel) {
     val nav = rememberNavController()
     val route = nav.currentBackStackEntryAsState().value?.destination?.route
-    val showChrome = items.any { it.route == route }
+    val showChrome = route == Routes.EDIT || items.any { it.route == route }
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -100,7 +102,12 @@ fun AppNav(vm: MainViewModel) {
             topBar = {
                 AnimatedVisibility(showChrome, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
                     TopAppBar(
-                        title = { Text(items.firstOrNull { it.route == route }?.label ?: "") },
+                        title = {
+                            Text(
+                                if (route == Routes.EDIT) "Editar datos"
+                                else items.firstOrNull { it.route == route }?.label ?: ""
+                            )
+                        },
                         navigationIcon = {
                             IconButton(onClick = { scope.launch { drawerState.open() } }) {
                                 Icon(Icons.Default.Menu, "Menú")
@@ -137,13 +144,19 @@ fun AppNav(vm: MainViewModel) {
         ) { pad ->
             NavHost(
                 navController = nav,
-                startDestination = if (vm.user != null) Routes.HOME else Routes.LOGIN,
+                startDestination = if (vm.user != null) Routes.HOME else Routes.WELCOME,
                 modifier = Modifier.padding(pad),
                 enterTransition = { slideInHorizontally { it / 4 } + fadeIn() },
                 exitTransition = { fadeOut() },
                 popEnterTransition = { fadeIn() },
                 popExitTransition = { fadeOut() }
             ) {
+                composable(Routes.WELCOME) {
+                    WelcomeScreen(
+                        onLogin = { nav.navigate(Routes.LOGIN) },
+                        onRegister = { nav.navigate(Routes.REGISTER) }
+                    )
+                }
                 composable(Routes.LOGIN) {
                     LoginScreen(
                         vm,
@@ -154,11 +167,18 @@ fun AppNav(vm: MainViewModel) {
                     )
                 }
                 composable(Routes.REGISTER) {
-                    RegisterScreen(vm, onDone = { nav.popBackStack() }, onBack = { nav.popBackStack() })
+                    RegisterScreen(
+                        vm,
+                        onDone = { nav.navigate(Routes.LOGIN) { popUpTo(Routes.WELCOME) } },
+                        onBack = { nav.popBackStack() }
+                    )
                 }
                 composable(Routes.HOME) { HomeScreen(vm, onDocs = { goTo(Routes.DOCS) }) }
                 composable(Routes.DOCS) { DocumentsScreen(vm) }
-                composable(Routes.PROFILE) { ProfileScreen(vm, onLogout = { showLogout = true }) }
+                composable(Routes.PROFILE) {
+                    ProfileScreen(vm, onEdit = { nav.navigate(Routes.EDIT) }, onLogout = { showLogout = true })
+                }
+                composable(Routes.EDIT) { EditProfileScreen(vm, onDone = { nav.popBackStack() }) }
             }
         }
     }
@@ -173,7 +193,7 @@ fun AppNav(vm: MainViewModel) {
                 TextButton(onClick = {
                     showLogout = false
                     vm.logout()
-                    nav.navigate(Routes.LOGIN) { popUpTo(nav.graph.id) { inclusive = true } }
+                    nav.navigate(Routes.WELCOME) { popUpTo(nav.graph.id) { inclusive = true } }
                 }) { Text("Salir") }
             },
             dismissButton = { TextButton(onClick = { showLogout = false }) { Text("Cancelar") } }
