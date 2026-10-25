@@ -7,9 +7,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,16 +31,17 @@ object Routes {
     const val LOGIN = "login"
     const val REGISTER = "register"
     const val HOME = "home"
-    const val DOCS = "documents"
     const val PROFILE = "profile"
     const val EDIT = "edit_profile"
+    const val MATERIAS = "materias"
+    const val ANUNCIOS = "anuncios"
+    const val CALENDARIO = "calendario"
 }
 
 private data class NavItem(val route: String, val label: String, val icon: ImageVector)
 
 private val items = listOf(
     NavItem(Routes.HOME, "Inicio", Icons.Default.Home),
-    NavItem(Routes.DOCS, "Documentos", Icons.Default.Folder),
     NavItem(Routes.PROFILE, "Perfil", Icons.Default.Person)
 )
 
@@ -47,7 +50,22 @@ private val items = listOf(
 fun AppNav(vm: MainViewModel) {
     val nav = rememberNavController()
     val route = nav.currentBackStackEntryAsState().value?.destination?.route
-    val showChrome = route == Routes.EDIT || items.any { it.route == route }
+
+    var materiaSeleccionada by remember { mutableStateOf<MateriaItem?>(null) }
+
+    LaunchedEffect(route) {
+        if (route != Routes.MATERIAS) {
+            materiaSeleccionada = null
+        }
+    }
+
+    val showChrome = route == Routes.EDIT ||
+            route == Routes.MATERIAS ||
+            route == Routes.ANUNCIOS ||
+            route == Routes.CALENDARIO ||
+            items.any { it.route == route }
+
+    val showTopBar = showChrome && route != Routes.HOME
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -60,15 +78,14 @@ fun AppNav(vm: MainViewModel) {
 
     fun goTo(r: String) {
         nav.navigate(r) {
-            popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+            popUpTo(Routes.HOME) { inclusive = (r == Routes.HOME) }
             launchSingleTop = true
-            restoreState = true
         }
     }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
-        gesturesEnabled = showChrome,
+        gesturesEnabled = showChrome && materiaSeleccionada == null,
         drawerContent = {
             ModalDrawerSheet {
                 Spacer(Modifier.height(16.dp))
@@ -98,19 +115,37 @@ fun AppNav(vm: MainViewModel) {
         }
     ) {
         Scaffold(
+            contentWindowInsets = if (route == Routes.HOME) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
             snackbarHost = { SnackbarHost(snackbar) },
             topBar = {
-                AnimatedVisibility(showChrome, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+                AnimatedVisibility(showTopBar, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
                     TopAppBar(
                         title = {
                             Text(
-                                if (route == Routes.EDIT) "Editar datos"
-                                else items.firstOrNull { it.route == route }?.label ?: ""
+                                if (route == Routes.MATERIAS && materiaSeleccionada != null) {
+                                    materiaSeleccionada!!.titulo // Muestra "Materia 2" en la cabecera verde
+                                } else {
+                                    when (route) {
+                                        Routes.EDIT -> "Editar datos"
+                                        Routes.MATERIAS -> "Materias"
+                                        Routes.ANUNCIOS -> "Anuncios del Día"
+                                        Routes.CALENDARIO -> "Calendario"
+                                        else -> items.firstOrNull { it.route == route }?.label ?: ""
+                                    }
+                                }
                             )
                         },
                         navigationIcon = {
-                            IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                Icon(Icons.Default.Menu, "Menú")
+                            if (route == Routes.MATERIAS && materiaSeleccionada != null) {
+
+                                IconButton(onClick = { materiaSeleccionada = null }) {
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retroceder")
+                                }
+                            } else {
+
+                                IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                    Icon(Icons.Default.Menu, "Menú")
+                                }
                             }
                         },
                         actions = {
@@ -173,12 +208,28 @@ fun AppNav(vm: MainViewModel) {
                         onBack = { nav.popBackStack() }
                     )
                 }
-                composable(Routes.HOME) { HomeScreen(vm, onDocs = { goTo(Routes.DOCS) }) }
-                composable(Routes.DOCS) { DocumentsScreen(vm) }
+                composable(Routes.HOME) {
+                    HomeScreen(
+                        vm = vm,
+                        onMaterias = { nav.navigate(Routes.MATERIAS) },
+                        onAnuncios = { nav.navigate(Routes.ANUNCIOS) },
+                        onCalendario = { nav.navigate(Routes.CALENDARIO) },
+                        onLogout = { showLogout = true }
+                    )
+                }
                 composable(Routes.PROFILE) {
                     ProfileScreen(vm, onEdit = { nav.navigate(Routes.EDIT) }, onLogout = { showLogout = true })
                 }
                 composable(Routes.EDIT) { EditProfileScreen(vm, onDone = { nav.popBackStack() }) }
+
+                composable(Routes.MATERIAS) {
+                    MateriasScreen(
+                        materiaSeleccionada = materiaSeleccionada,
+                        onSeleccionarMateria = { materiaSeleccionada = it }
+                    )
+                }
+                composable(Routes.ANUNCIOS) { AnunciosScreen() }
+                composable(Routes.CALENDARIO) { CalendarioScreen() }
             }
         }
     }
