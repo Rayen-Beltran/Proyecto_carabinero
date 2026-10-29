@@ -1,5 +1,7 @@
 package com.example.proyectocarabinero.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -12,12 +14,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -132,6 +138,18 @@ private fun MateriaCard(
 @Composable
 private fun DetalleMateriaScreen() {
     var expandido by remember { mutableStateOf(true) }
+    var mostrarInputDocumento by remember { mutableStateOf(false) }
+
+    var mensajeInput by remember { mutableStateOf("") }
+    var archivoAdjunto by remember { mutableStateOf<String?>(null) }
+
+    val filePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            archivoAdjunto = uri.lastPathSegment ?: "Documento_adjunto.pdf"
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -227,6 +245,82 @@ private fun DetalleMateriaScreen() {
                             },
                             modifier = Modifier.clickable { }
                         )
+
+                        HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
+
+                        // Botón verde para activar la zona de adjuntar/subir documento
+                        ListItem(
+                            headlineContent = {
+                                Text(
+                                    text = if (mostrarInputDocumento) "Ocultar opción de documento" else "Agregar Documento",
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            leadingContent = {
+                                Icon(
+                                    imageVector = Icons.Default.UploadFile,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            modifier = Modifier.clickable {
+                                mostrarInputDocumento = !mostrarInputDocumento
+                            }
+                        )
+
+                        // Sección expandible con el cuadro de texto e iconos (clip, eliminar, enviar)
+                        AnimatedVisibility(visible = mostrarInputDocumento) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                            ) {
+                                OutlinedTextField(
+                                    value = if (archivoAdjunto != null) "📎 $archivoAdjunto" else mensajeInput,
+                                    onValueChange = { if (archivoAdjunto == null) mensajeInput = it },
+                                    placeholder = { Text("Escriba un mensaje") },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp),
+                                    readOnly = archivoAdjunto != null,
+                                    trailingIcon = {
+                                        Row {
+                                            if (archivoAdjunto == null) {
+                                                // Icono de Clip pa
+                                                IconButton(onClick = { filePicker.launch("*/*") }) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.AttachFile,
+                                                        contentDescription = "Adjuntar archivo",
+                                                        tint = MaterialTheme.colorScheme.primary
+                                                    )
+                                                }
+                                            } else {
+                                                //Icono de Basura
+                                                IconButton(onClick = { archivoAdjunto = null }) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Delete,
+                                                        contentDescription = "Eliminar archivo",
+                                                        tint = MaterialTheme.colorScheme.error
+                                                    )
+                                                }
+                                            }
+
+                                            // Icono de Subir
+                                            IconButton(onClick = {
+                                                mensajeInput = ""
+                                                archivoAdjunto = null
+                                            }) {
+                                                Icon(
+                                                    imageVector = Icons.AutoMirrored.Filled.Send,
+                                                    contentDescription = "Enviar",
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
