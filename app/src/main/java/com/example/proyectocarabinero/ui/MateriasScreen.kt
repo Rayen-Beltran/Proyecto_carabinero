@@ -1,5 +1,9 @@
 package com.example.proyectocarabinero.ui
 
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -32,6 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import java.io.File
 
 data class MateriaItem(
@@ -148,7 +153,6 @@ private fun DetalleMateriaScreen() {
 
     var refrescarArchivos by remember { mutableStateOf(0) }
 
-    // FILTRO SOLUCIONADO: Ignora profileInstalled y cualquier archivo de sistema que contenga 'profile'
     val listaArchivosGuardados = remember(refrescarArchivos) {
         context.filesDir.listFiles()
             ?.filter { archivo ->
@@ -424,11 +428,47 @@ private fun DetalleMateriaScreen() {
                                         tint = MaterialTheme.colorScheme.error
                                     )
                                 }
+                            },
+                            // AL HACER CLICK EN EL ELEMENTO SE ABRE EL ARCHIVO
+                            modifier = Modifier.clickable {
+                                abrirDocumento(context, archivo)
                             }
                         )
                     }
                 }
             }
         }
+    }
+}
+
+// FUNCIÓN PARA ABRIR EL ARCHIVO CON APLICACIONES EXTERNAS
+private fun abrirDocumento(context: Context, file: File) {
+    try {
+        if (!file.exists()) {
+            Toast.makeText(context, "El archivo no existe", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val uri: Uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+
+        val mimeType = when {
+            file.name.endsWith(".pdf", true) -> "application/pdf"
+            file.name.endsWith(".txt", true) -> "text/plain"
+            file.name.endsWith(".jpg", true) || file.name.endsWith(".png", true) -> "image/*"
+            else -> "*/*"
+        }
+
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, mimeType)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
+        context.startActivity(Intent.createChooser(intent, "Abrir con"))
+    } catch (e: Exception) {
+        Toast.makeText(context, "No se encontró una aplicación para abrir este archivo", Toast.LENGTH_SHORT).show()
     }
 }
