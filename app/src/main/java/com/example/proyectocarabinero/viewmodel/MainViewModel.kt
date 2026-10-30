@@ -11,8 +11,12 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import com.example.proyectocarabinero.data.AppDb
 import com.example.proyectocarabinero.data.Doc
-import com.example.proyectocarabinero.data.User
-
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Matrix
+import android.media.ExifInterface
+import androidx.core.content.FileProvider
+import java.io.File
 class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     companion object {
@@ -63,6 +67,66 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         message = "Datos actualizados"
         return null
     }
+    // ---------- Foto de perfil ----------
+    var photoVersion by mutableStateOf(0)
+        private set
+
+    private fun avatarFile() = File(app.filesDir, "avatars/${user?.id ?: 0}.jpg").also { it.parentFile?.mkdirs() }
+    private fun tempFile() = File(app.filesDir, "avatars/tmp.jpg").also { it.parentFile?.mkdirs() }
+
+    fun newPhotoUri(): Uri =
+        FileProvider.getUriForFile(app, "${app.packageName}.fileprovider", tempFile())
+
+    fun onPhotoTaken(ok: Boolean) {
+        if (!ok) return
+        tempFile().copyTo(avatarFile(), overwrite = true)
+        tempFile().delete()
+        photoVersion++
+        message = "Foto de perfil actualizada"
+    }
+
+    fun setPhotoFromGallery(uri: Uri) {
+        try {
+            app.contentResolver.openInputStream(uri)?.use { input ->
+                avatarFile().outputStream().use { input.copyTo(it) }
+            } ?: throw java.io.IOException()
+            photoVersion++
+            message = "Foto de perfil actualizada"
+        } catch (e: Exception) {
+            message = "No se pudo cargar la imagen"
+        }
+    }
+
+    fun hasPhoto() = avatarFile().exists()
+
+    fun removePhoto() {
+        avatarFile().delete()
+        photoVersion++
+        message = "Foto eliminada"
+    }
+
+    fun loadPhoto(): Bitmap? {
+        val f = avatarFile()
+        if (!f.exists()) return null
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(f.path, bounds)
+        var sample = 1
+        while (bounds.outWidth / sample > 600) sample *= 2
+        val bmp = BitmapFactory.decodeFile(f.path, BitmapFactory.Options().apply { inSampleSize = sample })
+            ?: return null
+        val degrees = when (
+            ExifInterface(f.path).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+        ) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+            ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+            ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+            else -> 0f
+        }
+        if (degrees == 0f) return bmp
+        val m = Matrix().apply { postRotate(degrees) }
+        return Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, m, true)
+    }
+
     fun logout() {
         prefs.edit().remove("user_id").apply()
         user = null
