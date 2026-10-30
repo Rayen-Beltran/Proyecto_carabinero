@@ -118,6 +118,7 @@ fun AppNav(vm: MainViewModel) {
             contentWindowInsets = if (route == Routes.HOME) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
             snackbarHost = { SnackbarHost(snackbar) },
             topBar = {
+                //Animación de la barra superior
                 AnimatedVisibility(showTopBar, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
                     TopAppBar(
                         title = {
@@ -163,6 +164,7 @@ fun AppNav(vm: MainViewModel) {
                 }
             },
             bottomBar = {
+                //  Animación de la barra de navegación inferior
                 AnimatedVisibility(showChrome, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
                     NavigationBar {
                         items.forEach { item ->
@@ -181,6 +183,7 @@ fun AppNav(vm: MainViewModel) {
                 navController = nav,
                 startDestination = if (vm.user != null) Routes.HOME else Routes.WELCOME,
                 modifier = Modifier.padding(pad),
+                // Animación de transición entre pantallas
                 enterTransition = { slideInHorizontally { it / 4 } + fadeIn() },
                 exitTransition = { fadeOut() },
                 popEnterTransition = { fadeIn() },

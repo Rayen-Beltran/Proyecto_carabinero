@@ -26,6 +26,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.proyectocarabinero.viewmodel.MainViewModel
+import android.content.ActivityNotFoundException
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.Dp
 
 // Color de Carabineros
 private val VerdeCarabineros = Color(0xFF00512C)
@@ -58,20 +67,11 @@ fun HomeScreen(
                     .padding(20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(
-                    shape = CircleShape,
-                    color = Color.White.copy(alpha = 0.2f),
-                    modifier = Modifier.size(52.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Foto de perfil",
-                        tint = Color.White,
-                        modifier = Modifier.padding(10.dp)
-                    )
-                }
+                ProfileAvatar(vm, 52.dp, tint = Color.White)
+
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
+
                     Text(
                         text = "Bienvenido,",
                         color = Color.White.copy(alpha = 0.8f),
@@ -155,6 +155,7 @@ private fun FeatureCard(
 ) {
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
+    // Animación de las tarjetas del Inicio
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn(tween(400, delayMillis = index * 100)) +
@@ -193,17 +194,18 @@ private fun FeatureCard(
     }
 }
 
+
 @Composable
 fun ProfileScreen(vm: MainViewModel, onEdit: () -> Unit, onLogout: () -> Unit) {
     Column(
-        Modifier.fillMaxSize().padding(24.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically)
     ) {
-        Icon(Icons.Default.AccountCircle, null, Modifier.size(96.dp), tint = MaterialTheme.colorScheme.primary)
+        ProfileAvatar(vm, 120.dp)
         Text(vm.user?.name ?: "", style = MaterialTheme.typography.headlineSmall)
         Text(vm.user?.email ?: "", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(8.dp))
         OutlinedButton(onClick = onEdit) {
             Icon(Icons.Default.Edit, null)
             Spacer(Modifier.width(8.dp))
@@ -216,20 +218,26 @@ fun ProfileScreen(vm: MainViewModel, onEdit: () -> Unit, onLogout: () -> Unit) {
         }
     }
 }
-
 @Composable
-    fun EditProfileScreen(vm: MainViewModel, onDone: () -> Unit) {
-        var name by rememberSaveable { mutableStateOf(vm.user?.name ?: "") }
-        var email by rememberSaveable { mutableStateOf(vm.user?.email ?: "") }
-        var newPass by rememberSaveable { mutableStateOf("") }
-        var current by rememberSaveable { mutableStateOf("") }
-        var submitted by remember { mutableStateOf(false) }
-        var error by remember { mutableStateOf<String?>(null) }
+fun EditProfileScreen(vm: MainViewModel, onDone: () -> Unit) {
+    var name by rememberSaveable { mutableStateOf(vm.user?.name ?: "") }
+    var email by rememberSaveable { mutableStateOf(vm.user?.email ?: "") }
+    var newPass by rememberSaveable { mutableStateOf("") }
+    var current by rememberSaveable { mutableStateOf("") }
+    var submitted by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
 
-        val nameErr = validateName(name)
-        val emailErr = validateEmail(email)
-        val newPassErr = if (newPass.isEmpty()) null else validatePassword(newPass)
-        val currentErr = if (current.isEmpty()) "Ingresa tu contraseña actual para confirmar" else null
+    val nameErr = validateName(name)
+    val emailErr = validateEmail(email)
+    val newPassErr = if (newPass.isEmpty()) null else validatePassword(newPass)
+    val currentErr = if (current.isEmpty()) "Ingresa tu contraseña actual para confirmar" else null
+
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        vm.onPhotoTaken(ok)
+    }
+    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let { vm.setPhotoFromGallery(it) }
+    }
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
@@ -237,6 +245,40 @@ fun ProfileScreen(vm: MainViewModel, onEdit: () -> Unit, onLogout: () -> Unit) {
     ) {
         Text("Editar mis datos", style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(8.dp))
+
+        // Foto de perfil (recurso nativo: cámara y galería)
+        Column(
+            Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            ProfileAvatar(vm, 110.dp)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = {
+                    try {
+                        camera.launch(vm.newPhotoUri())
+                    } catch (e: ActivityNotFoundException) {
+                        vm.showMessage("No hay una app de cámara disponible")
+                    }
+                }) {
+                    Icon(Icons.Default.PhotoCamera, null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Tomar foto")
+                }
+                OutlinedButton(onClick = {
+                    gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                }) {
+                    Icon(Icons.Default.PhotoLibrary, null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Galería")
+                }
+            }
+            if (vm.photoVersion >= 0 && vm.hasPhoto()) {
+                TextButton(onClick = { vm.removePhoto() }) { Text("Quitar foto") }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+
         AppTextField(name, { name = it }, "Nombre", Icons.Default.Person, if (submitted) nameErr else null)
         AppTextField(email, { email = it; error = null }, "Correo", Icons.Default.Email,
             if (submitted) emailErr else null, keyboardType = KeyboardType.Email)
@@ -257,5 +299,24 @@ fun ProfileScreen(vm: MainViewModel, onEdit: () -> Unit, onLogout: () -> Unit) {
             modifier = Modifier.fillMaxWidth()
         ) { Text("Guardar cambios") }
         TextButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) { Text("Cancelar") }
+    }
+}
+@Composable
+fun ProfileAvatar(
+    vm: MainViewModel,
+    size: Dp,
+    modifier: Modifier = Modifier,
+    tint: Color = MaterialTheme.colorScheme.primary
+) {
+    val photo = remember(vm.photoVersion, vm.user?.id) { vm.loadPhoto()?.asImageBitmap() }
+    if (photo != null) {
+        Image(
+            bitmap = photo,
+            contentDescription = "Foto de perfil",
+            contentScale = ContentScale.Crop,
+            modifier = modifier.size(size).clip(CircleShape)
+        )
+    } else {
+        Icon(Icons.Default.AccountCircle, "Sin foto de perfil", modifier.size(size), tint = tint)
     }
 }

@@ -27,7 +27,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
 import com.example.proyectocarabinero.R
 
-// ---------- Validaciones ----------
+// Validaciones
 fun validateName(s: String): String? = when {
     s.isBlank() -> "Ingresa tu nombre"
     s.trim().length < 3 -> "Mínimo 3 caracteres"
@@ -47,7 +47,7 @@ fun validatePassword(s: String): String? = when {
     else -> null
 }
 
-// ---------- Componentes ----------
+// Componentes
 @Composable
 fun AppTextField(
     value: String,
@@ -88,6 +88,7 @@ fun AppTextField(
 private fun AuthHeader(title: String, subtitle: String) {
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
+    // Animación de entrada del escudo y el título
     AnimatedVisibility(visible, enter = fadeIn() + slideInVertically { -it / 2 }) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Image(
