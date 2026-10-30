@@ -28,9 +28,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.io.File
 
 data class MateriaItem(
     val id: Int,
@@ -137,6 +139,7 @@ private fun MateriaCard(
 
 @Composable
 private fun DetalleMateriaScreen() {
+    val context = LocalContext.current
     var expandido by remember { mutableStateOf(true) }
     var mostrarInputDocumento by remember { mutableStateOf(false) }
 
@@ -146,8 +149,27 @@ private fun DetalleMateriaScreen() {
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
-        if (uri != null) {
-            archivoAdjunto = uri.lastPathSegment ?: "Documento_adjunto.pdf"
+        uri?.let { selectedUri ->
+            try {
+                // el nombre del archivo
+                val nombreArchivo = selectedUri.lastPathSegment?.substringAfterLast("/")
+                    ?: "documento_${System.currentTimeMillis()}.pdf"
+
+                //  ruta de destino en la memoria del teléfono
+                val archivoDestino = File(context.filesDir, nombreArchivo)
+
+                // 3. Copia el contenido al almacenamineto de la app
+                context.contentResolver.openInputStream(selectedUri)?.use { inputStream ->
+                    archivoDestino.outputStream().use { outputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                }
+
+                // Muestrar el nombre en pantalla
+                archivoAdjunto = nombreArchivo
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 
@@ -286,7 +308,7 @@ private fun DetalleMateriaScreen() {
                                     trailingIcon = {
                                         Row {
                                             if (archivoAdjunto == null) {
-                                                // Icono de Clip pa
+                                                // Icono de Clip
                                                 IconButton(onClick = { filePicker.launch("*/*") }) {
                                                     Icon(
                                                         imageVector = Icons.Default.AttachFile,
@@ -295,7 +317,7 @@ private fun DetalleMateriaScreen() {
                                                     )
                                                 }
                                             } else {
-                                                //Icono de Basura
+                                                // Icono de Basura
                                                 IconButton(onClick = { archivoAdjunto = null }) {
                                                     Icon(
                                                         imageVector = Icons.Default.Delete,
