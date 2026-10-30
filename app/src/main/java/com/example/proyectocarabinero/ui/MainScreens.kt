@@ -105,7 +105,7 @@ fun HomeScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // 2. Anuncios del día
+            //  Anuncios del día
             FeatureCard(
                 index = 0,
                 icon = Icons.Default.Campaign,

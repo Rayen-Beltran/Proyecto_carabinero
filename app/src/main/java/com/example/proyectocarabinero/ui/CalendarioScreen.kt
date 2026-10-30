@@ -39,7 +39,7 @@ fun CalendarioScreen() {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Calendario adcaemico",
+            text = "Calendario academico",
             style = MaterialTheme.typography.headlineSmall
         )
         Spacer(modifier = Modifier.height(8.dp))
