@@ -146,27 +146,37 @@ private fun DetalleMateriaScreen() {
     var mensajeInput by remember { mutableStateOf("") }
     var archivoAdjunto by remember { mutableStateOf<String?>(null) }
 
+    var refrescarArchivos by remember { mutableStateOf(0) }
+
+    // FILTRO SOLUCIONADO: Ignora profileInstalled y cualquier archivo de sistema que contenga 'profile'
+    val listaArchivosGuardados = remember(refrescarArchivos) {
+        context.filesDir.listFiles()
+            ?.filter { archivo ->
+                archivo.isFile &&
+                        !archivo.name.contains("profile", ignoreCase = true) &&
+                        !archivo.name.startsWith("foto_", ignoreCase = true)
+            }
+            ?: emptyList()
+    }
+
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
         uri?.let { selectedUri ->
             try {
-                // el nombre del archivo
                 val nombreArchivo = selectedUri.lastPathSegment?.substringAfterLast("/")
                     ?: "documento_${System.currentTimeMillis()}.pdf"
 
-                //  ruta de destino en la memoria del teléfono
                 val archivoDestino = File(context.filesDir, nombreArchivo)
 
-                // 3. Copia el contenido al almacenamineto de la app
                 context.contentResolver.openInputStream(selectedUri)?.use { inputStream ->
                     archivoDestino.outputStream().use { outputStream ->
                         inputStream.copyTo(outputStream)
                     }
                 }
 
-                // Muestrar el nombre en pantalla
                 archivoAdjunto = nombreArchivo
+                refrescarArchivos++
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -270,7 +280,6 @@ private fun DetalleMateriaScreen() {
 
                         HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
 
-                        // Botón verde para activar la zona de adjuntar/subir documento
                         ListItem(
                             headlineContent = {
                                 Text(
@@ -291,7 +300,6 @@ private fun DetalleMateriaScreen() {
                             }
                         )
 
-                        // Sección expandible con el cuadro de texto e iconos (clip, eliminar, enviar)
                         AnimatedVisibility(visible = mostrarInputDocumento) {
                             Column(
                                 modifier = Modifier
@@ -308,7 +316,6 @@ private fun DetalleMateriaScreen() {
                                     trailingIcon = {
                                         Row {
                                             if (archivoAdjunto == null) {
-                                                // Icono de Clip
                                                 IconButton(onClick = { filePicker.launch("*/*") }) {
                                                     Icon(
                                                         imageVector = Icons.Default.AttachFile,
@@ -317,20 +324,25 @@ private fun DetalleMateriaScreen() {
                                                     )
                                                 }
                                             } else {
-                                                // Icono de Basura
                                                 IconButton(onClick = { archivoAdjunto = null }) {
                                                     Icon(
                                                         imageVector = Icons.Default.Delete,
-                                                        contentDescription = "Eliminar archivo",
+                                                        contentDescription = "Cancelar",
                                                         tint = MaterialTheme.colorScheme.error
                                                     )
                                                 }
                                             }
 
-                                            // Icono de Subir
                                             IconButton(onClick = {
+                                                if (archivoAdjunto == null && mensajeInput.isNotBlank()) {
+                                                    val nombreTxt = "Mensaje_${System.currentTimeMillis()}.txt"
+                                                    val archivoTxt = File(context.filesDir, nombreTxt)
+                                                    archivoTxt.writeText(mensajeInput)
+                                                }
+
                                                 mensajeInput = ""
                                                 archivoAdjunto = null
+                                                refrescarArchivos++
                                             }) {
                                                 Icon(
                                                     imageVector = Icons.AutoMirrored.Filled.Send,
@@ -343,6 +355,77 @@ private fun DetalleMateriaScreen() {
                                 )
                             }
                         }
+                    }
+                }
+            }
+        }
+
+        if (listaArchivosGuardados.isNotEmpty()) {
+            Text(
+                text = "Documentos Adjuntos",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    listaArchivosGuardados.forEachIndexed { index, archivo ->
+                        if (index > 0) {
+                            HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
+                        }
+
+                        val textoMostrado = if (archivo.name.endsWith(".txt")) {
+                            "💬 ${archivo.readText()}"
+                        } else {
+                            archivo.name
+                        }
+
+                        ListItem(
+                            headlineContent = {
+                                Text(
+                                    text = textoMostrado,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            leadingContent = {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.Description,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                            },
+                            trailingContent = {
+                                IconButton(onClick = {
+                                    if (archivo.exists()) {
+                                        archivo.delete()
+                                        refrescarArchivos++
+                                    }
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Eliminar documento",
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                        )
                     }
                 }
             }
